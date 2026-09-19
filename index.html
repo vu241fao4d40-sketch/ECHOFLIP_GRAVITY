@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ECHOCORE: ANTI-GRAVITY</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Google Fonts for futuristic cyberpunk aesthetic -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .brand-title, .modal-title, .vector-text, .dpad-btn, .play-main-btn, .menu-btn, .primary-btn {
+      font-family: 'Orbitron', -apple-system, sans-serif;
+    }
+    body, .meter-label-row, .stat-label, .emergency-desc, .instruction-item, .briefing-badge-label {
+      font-family: 'Rajdhani', -apple-system, sans-serif;
+      font-size: 1.05rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Feedback Popups (e.g. +100 EMERGENCY SOLVED, -150 COLLISION) -->
+    <div id="feedback-banner"></div>
+
+    <div id="login-modal" class="modal-overlay login-overlay">
+      <form id="login-form" class="modal-card login-card">
+        <div class="login-orbit" aria-hidden="true">◉</div>
+        <span class="tutorial-kicker">NEO-AETHEL // ACCESS NODE</span>
+        <h1 class="modal-title">WELCOME, CONTROLLER</h1>
+        <p class="login-copy">Create your local pilot profile to save missions, scores, and level progress on this device.</p>
+        <label class="login-label" for="player-name">CONTROLLER NAME</label>
+        <input id="player-name" class="login-input" name="playerName" type="text" maxlength="18" autocomplete="nickname" placeholder="Enter your callsign" required />
+        <p id="login-error" class="login-error" role="alert"></p>
+        <button class="primary-btn" type="submit">ENTER ECHOCORE</button>
+        <small class="login-note">Local profile only. No account or network connection required.</small>
+      </form>
+    </div>
+
+    <!-- HUD Overlay -->
+    <div id="hud-overlay">
+      <!-- Top Status Row -->
+      <header class="top-bar">
+        <!-- Title & Subtitle (Clickable to return to menu) -->
+        <div id="brand-badge" class="brand-section interactive" style="cursor: pointer;" title="Open Menu">
+          <div class="brand-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M12 3v18M3 12h18"></path>
+              <circle cx="12" cy="12" r="3" fill="#00f0ff"></circle>
+            </svg>
+            ECHOCORE
+          </div>
+          <div class="brand-subtitle">ANTI-GRAVITY CITY CONTROLLER</div>
+        </div>
+
+        <!-- City Stability & Core Power Meters -->
+        <div class="meters-container">
+          <!-- City Stability Bar -->
+          <div class="meter-block">
+            <div class="meter-label-row">
+              <span style="color: var(--green);">CITY STABILITY</span>
+              <span id="stability-value" style="color: var(--green); font-family: var(--font-mono);">100%</span>
+            </div>
+            <div class="meter-track">
+              <div id="stability-bar" class="meter-fill stability-fill" style="width: 100%;"></div>
+            </div>
+          </div>
+
+          <!-- Gravity Core Power Bar -->
+          <div class="meter-block">
+            <div class="meter-label-row">
+              <span style="color: var(--cyan);">CORE POWER</span>
+              <span id="power-value" style="color: var(--cyan); font-family: var(--font-mono);">100%</span>
+            </div>
+            <div class="meter-track">
+              <div id="power-bar" class="meter-fill core-power-fill" style="width: 100%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Game Stats & Action Controls -->
+        <div class="stats-container">
+          <div class="stat-item">
+            <span class="stat-label">LEVEL</span>
+            <span id="level-value" class="stat-value">1</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">SCORE</span>
+            <span id="score-value" class="stat-value">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">TIMER</span>
+            <span id="timer-value" class="stat-value" style="color: var(--amber);">90s</span>
+          </div>
+          <button id="sound-toggle-btn" class="hud-btn" title="Toggle Sound FX">
+            <span id="sound-icon">🔊</span>
+          </button>
+          <button id="music-toggle-btn" class="hud-btn" title="Toggle Synth BGM">
+            <span id="music-icon">🎵</span>
+          </button>
+          <button id="pause-btn" class="hud-btn" title="Pause Game">
+            <span>⏸️</span> PAUSE
+          </button>
+        </div>
+      </header>
+
+      <!-- Non-Blocking Top/Side Emergency Alert Pill -->
+      <aside id="alert-container" class="alert-container">
+        <div id="emergency-panel" class="alert-pill status-normal" title="Tap for Sector Details">
+          <div class="alert-pill-content">
+            <span id="emergency-icon" class="alert-icon">🛡️</span>
+            <div class="alert-text-group">
+              <span id="emergency-name" class="alert-title">GRAVITY CORE NOMINAL</span>
+              <span id="alert-mini-hint" class="alert-hint">Sector Telemetry Synchronized</span>
+            </div>
+          </div>
+          <div class="alert-right-badge">
+            <span id="emergency-countdown" class="alert-time">--:--</span>
+            <button id="btn-dismiss-emergency" class="btn-dismiss-emergency" type="button">GOT IT</button>
+            <span id="alert-toggle-icon" class="alert-expand-icon">ℹ️</span>
+          </div>
+          <div class="alert-progress-rail">
+            <div id="emergency-timer-bar" class="alert-progress-fill" style="width: 100%;"></div>
+          </div>
+        </div>
+
+        <!-- Expandable Detail Drawer (Non-blocking dropdown/flyout) -->
+        <div id="alert-drawer" class="alert-drawer hidden">
+          <div id="emergency-desc" class="drawer-desc">Monitoring floating city sectors. Awaiting telemetry...</div>
+          <div id="emergency-consequence" class="drawer-warning">⚡ Every gravity shift affects civilian transit!</div>
+        </div>
+      </aside>
+
+      <!-- Bottom Interactive Gravity Controls & Vector Display -->
+      <footer class="bottom-controls-bar">
+        <!-- Live Gravity Direction Compass -->
+        <div class="vector-indicator-card">
+          <div class="vector-label">ACTIVE GRAVITY</div>
+          <div class="vector-compass">
+            <div id="vector-arrow" class="vector-arrow">●</div>
+          </div>
+          <div id="vector-text" class="vector-text">ZERO-G</div>
+        </div>
+
+        <!-- 4-Way Gravity D-Pad (UP, DOWN, LEFT, RIGHT, NEUTRAL) -->
+        <div class="dpad-container interactive">
+          <button id="btn-up" class="dpad-btn dpad-up" aria-label="Gravity Up">
+            ▲
+            <span>UP</span>
+          </button>
+          <button id="btn-left" class="dpad-btn dpad-left" aria-label="Gravity Left">
+            ◀
+            <span>LEFT</span>
+          </button>
+          <button id="btn-neutral" class="dpad-btn dpad-neutral" aria-label="Zero Gravity">
+            ●
+            <span>ZERO</span>
+          </button>
+          <button id="btn-right" class="dpad-btn dpad-right" aria-label="Gravity Right">
+            ▶
+            <span>RIGHT</span>
+          </button>
+          <button id="btn-down" class="dpad-btn dpad-down" aria-label="Gravity Down">
+            ▼
+            <span>DOWN</span>
+          </button>
+        </div>
+
+        <!-- Keyboard Controls Hint -->
+        <div class="keyboard-hint">
+          <strong>CONTROLS:</strong><br>
+          <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> or <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><br>
+          <kbd>SPACE</kbd> Zero-G Stabilize<br>
+          <kbd>P</kbd> Pause
+        </div>
+      </footer>
+    </div>
+
+    <!-- 1. MAIN MENU MODAL -->
+    <div id="main-menu-modal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="menu-header-logo">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2">
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="M12 3v18M3 12h18"></path>
+            <circle cx="12" cy="12" r="3" fill="#00f0ff"></circle>
+          </svg>
+          <h1 class="modal-title">ECHOCORE</h1>
+          <div style="color: var(--cyan); letter-spacing: 4px; font-weight: 800; font-size: 0.95rem;">ANTI-GRAVITY</div>
+          <div class="menu-subtitle">CONTROL GRAVITY. SAVE THE CITY.</div>
+          <div id="player-greeting" class="player-greeting"></div>
+        </div>
+
+        <div class="menu-stats-row">
+          <div class="menu-stat-pill">
+            <span class="stat-label">BEST SCORE</span>
+            <span id="menu-best-score" class="stat-value">0</span>
+          </div>
+          <div class="menu-stat-pill">
+            <span class="stat-label">CURRENT LEVEL</span>
+            <span id="menu-current-level" class="stat-value">1</span>
+          </div>
+        </div>
+
+        <div class="menu-buttons-list">
+          <button id="menu-play-btn" class="play-main-btn">▶ PLAY</button>
+          <button id="menu-missions-btn" class="menu-btn">📁 MISSIONS</button>
+          <button id="menu-how-to-play-btn" class="menu-btn">📖 HOW TO PLAY</button>
+          <button id="menu-settings-btn" class="menu-btn">⚙️ SETTINGS</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. ONBOARDING MODAL -->
+    <div id="onboarding-modal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div id="onboarding-screen-1" class="onboarding-screen">
+          <div class="tutorial-tag">STEP 1</div>
+          <h2 class="modal-title">SHIFT THE GRAVITY VECTOR</h2>
+          <p style="color: #cad8e6; line-height: 1.5;">Use the D-pad or arrow keys to steer the city’s gravity pull toward the safest route.</p>
+          <button id="onboarding-btn-1" class="primary-btn" type="button">NEXT</button>
+        </div>
+
+        <div id="onboarding-screen-2" class="onboarding-screen hidden">
+          <div class="tutorial-tag">STEP 2</div>
+          <h2 class="modal-title">MANAGE CORE POWER</h2>
+          <p style="color: #cad8e6; line-height: 1.5;">Every gravity shift drains the core. Neutralize often to recover energy and stabilize the city.</p>
+          <button id="onboarding-btn-2" class="primary-btn" type="button">NEXT</button>
+        </div>
+
+        <div id="onboarding-screen-3" class="onboarding-screen hidden">
+          <div class="tutorial-tag">STEP 3</div>
+          <h2 class="modal-title">CLEAR EMERGENCIES FAST</h2>
+          <p style="color: #cad8e6; line-height: 1.5;">Respond to crisis zones before the timer burns out. Faster solves grant the biggest score bonuses.</p>
+          <button id="onboarding-btn-3" class="primary-btn" type="button">NEXT</button>
+        </div>
+
+        <div id="onboarding-screen-4" class="onboarding-screen hidden">
+          <div class="tutorial-tag">STEP 4</div>
+          <h2 class="modal-title">PROTECT CIVILIANS</h2>
+          <p style="color: #cad8e6; line-height: 1.5;">Keep city stability above zero. A failed sector drains the metropolis and ends the run.</p>
+          <button id="onboarding-btn-4" class="primary-btn" type="button">NEXT</button>
+        </div>
+
+        <div id="onboarding-screen-5" class="onboarding-screen hidden">
+          <div class="tutorial-tag">STEP 5</div>
+          <h2 class="modal-title">YOU'RE READY</h2>
+          <p style="color: #cad8e6; line-height: 1.5;">Pilot the stabilizer, clear the city sectors, and save Neo-Aethel from the ECHOCORE collapse.</p>
+          <button id="onboarding-btn-5" class="play-main-btn" type="button">▶ START MISSION 1</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. INTERACTIVE SUBWAY SURFERS STYLE TUTORIAL HUD OVERLAY -->
+    <div id="tutorial-hud" class="tutorial-hud hidden">
+      <div class="tutorial-card">
+        <div class="tutorial-badge-row">
+          <span class="tutorial-tag">ACTIVE TUTORIAL</span>
+          <span id="tutorial-step-indicator" class="tutorial-step-pill">STEP 1/4</span>
+          <button id="tutorial-skip-btn" class="tutorial-skip-btn">SKIP ✕</button>
+        </div>
+        <div id="tutorial-prompt-title" class="tutorial-main-instruction">MOVE THE STABILIZER</div>
+        <div id="tutorial-prompt-sub" class="tutorial-sub-instruction">Drag it directly with your finger/mouse or use W/A/S/D keys toward the Gravity Core!</div>
+        <div class="tutorial-progress-dots">
+          <span id="tdot-1" class="tdot active"></span>
+          <span id="tdot-2" class="tdot"></span>
+          <span id="tdot-3" class="tdot"></span>
+          <span id="tdot-4" class="tdot"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. TUTORIAL COMPLETION MODAL ("YOU'RE READY, GRAVITY CONTROLLER!") -->
+    <div id="tutorial-complete-modal" class="modal-overlay hidden">
+      <div class="modal-card victory tutorial-finish-card">
+        <div class="tutorial-finish-icon">🏆⚡</div>
+        <h2 class="modal-title" style="color: var(--green); font-size: 1.6rem;">YOU’RE READY, GRAVITY CONTROLLER!</h2>
+        <p style="color: #cad8e6; font-size: 1.05rem; line-height: 1.5;">
+          You mastered the gravity stabilizer and tractor socket locks.<br>
+          Neo-Aethel depends on your reflexes.
+        </p>
+        <button id="tutorial-start-mission-btn" class="play-main-btn" style="width: 100%;">▶ START MISSION 1</button>
+      </div>
+    </div>
+
+    <!-- 4. 3-2-1-GO! COUNTDOWN OVERLAY -->
+    <div id="countdown-modal" class="modal-overlay countdown-overlay hidden">
+      <div id="countdown-display" class="countdown-number">3</div>
+    </div>
+
+    <!-- 3. LEVEL START / BRIEFING SCREEN MODAL -->
+    <div id="level-start-modal" class="modal-overlay hidden">
+      <div class="modal-card briefing">
+        <div id="briefing-level-tag" style="font-size: 0.85rem; color: var(--cyan); letter-spacing: 2px; font-weight: 800;">
+          LEVEL 1
+        </div>
+        <h2 id="briefing-level-title" class="modal-title">CORE FAILURE</h2>
+        <p id="briefing-objective-text" style="font-size: 1.05rem; color: #cad8e6; line-height: 1.5;">
+          Guide the magnetic stabilizer to the Gravity Core.
+        </p>
+        <div class="briefing-badges">
+          <div class="briefing-badge">
+            <span class="briefing-badge-label">OBJECTIVE</span>
+            <span id="briefing-badge-obj" class="briefing-badge-val" style="font-size: 0.85rem;">STABILIZE CORE</span>
+          </div>
+          <div class="briefing-badge">
+            <span class="briefing-badge-label">TIME LIMIT</span>
+            <span id="briefing-badge-time" class="briefing-badge-val">90s</span>
+          </div>
+          <div class="briefing-badge">
+            <span class="briefing-badge-label">CITY STABILITY</span>
+            <span id="briefing-badge-stab" class="briefing-badge-val" style="color: var(--green);">100%</span>
+          </div>
+        </div>
+        <button id="briefing-start-btn" class="primary-btn" style="width: 100%;">START MISSION</button>
+      </div>
+    </div>
+
+    <!-- 4. MISSION COMPLETION MODAL (Shown after each successful emergency) -->
+    <div id="mission-complete-modal" class="modal-overlay hidden">
+      <div class="modal-card victory">
+        <div style="font-size: 2.5rem;">🎉</div>
+        <h2 class="modal-title" style="color: var(--green);">MISSION COMPLETE!</h2>
+        <div class="completion-rewards">
+          <div class="reward-row">
+            <span>EMERGENCY RESOLVED:</span>
+            <span id="comp-base-score" class="reward-val">+100 SCORE</span>
+          </div>
+          <div class="reward-row">
+            <span>CITY STABILITY:</span>
+            <span id="comp-stability-val" class="reward-val" style="color: var(--green);">+5%</span>
+          </div>
+          <div id="comp-bonus-row" class="reward-row">
+            <span>RESPONSE BONUS:</span>
+            <span id="comp-bonus-score" class="reward-val" style="color: var(--amber);">Fast Response +50</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: center;">
+          <button id="completion-next-btn" class="primary-btn" style="flex: 1;">NEXT MISSION</button>
+          <button id="completion-menu-btn" class="secondary-btn">MAIN MENU</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. MISSIONS SELECT MODAL -->
+    <div id="missions-modal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <h2 class="modal-title">MISSION ARCHIVES</h2>
+        <div id="mission-select-list" style="display: flex; flex-direction: column; gap: 10px; margin: 10px 0;"></div>
+        <div style="display: flex; gap: 10px;">
+          <button id="missions-back-btn" class="secondary-btn" style="flex: 1;">← BACK</button>
+          <button id="missions-close-btn" class="secondary-btn" style="flex: 1;">BACK TO MENU</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. SETTINGS MODAL -->
+    <div id="settings-modal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <h2 class="modal-title">SETTINGS</h2>
+        <div style="display: flex; flex-direction: column; gap: 14px; margin: 12px 0;">
+          <button id="settings-sound-btn" class="menu-btn">🔊 SOUND EFFECTS: ON</button>
+          <button id="settings-theme-btn" class="menu-btn">🌙 DARK MODE</button>
+          <button id="settings-replay-onboarding-btn" class="menu-btn">📖 REPLAY HOW TO PLAY TUTORIAL</button>
+          <button id="settings-reset-score-btn" class="menu-btn" style="border-color: var(--red); color: #ff8899;">🗑️ RESET HIGH SCORE</button>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button id="settings-back-btn" class="secondary-btn" style="flex: 1;">← BACK</button>
+          <button id="settings-close-btn" class="primary-btn" style="flex: 1;">CLOSE</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. LEVEL COMPLETE MODAL (End of all emergencies in level) -->
+    <div id="level-modal" class="modal-overlay hidden">
+      <div class="modal-card victory">
+        <h2 id="level-modal-title" class="modal-title">SECTOR STABILIZED!</h2>
+        <p id="level-modal-desc" style="color: #cad8e6;">
+          Outstanding work, Controller. The sector has regained gravitational equilibrium.
+        </p>
+        <div class="briefing-badges">
+          <div class="briefing-badge">
+            <span class="briefing-badge-label">TOTAL SCORE</span>
+            <span id="level-modal-score" class="briefing-badge-val">0</span>
+          </div>
+          <div class="briefing-badge">
+            <span class="briefing-badge-label">CITY INTEGRITY</span>
+            <span id="level-modal-stability" class="briefing-badge-val" style="color: var(--green);">100%</span>
+          </div>
+          <div class="briefing-badge">
+            <span class="briefing-badge-label">SECTOR STATUS</span>
+            <span class="briefing-badge-val" style="color: var(--cyan);">CLEAR</span>
+          </div>
+        </div>
+        <button id="next-level-btn" class="primary-btn">ENGAGE NEXT SECTOR</button>
+      </div>
+    </div>
+
+    <!-- 8. GAME OVER MODAL -->
+    <div id="gameover-modal" class="modal-overlay hidden">
+      <div class="modal-card gameover">
+        <h2 class="modal-title">CORE CRITICAL FAILURE</h2>
+        <p style="color: #cad8e6;">
+          City Stability dropped to 0%! Neo-Aethel has suffered catastrophic structural de-orbit.
+        </p>
+        <div class="briefing-badges">
+          <div class="briefing-badge">
+            <span class="briefing-badge-label">FINAL SCORE</span>
+            <span id="gameover-score" class="briefing-badge-val" style="color: var(--red);">0</span>
+          </div>
+          <div class="briefing-badge">
+            <span class="briefing-badge-label">REACHED LEVEL</span>
+            <span id="gameover-level" class="briefing-badge-val">1</span>
+          </div>
+          <div class="briefing-badge">
+            <span class="briefing-badge-label">BEST SCORE</span>
+            <span id="gameover-best" class="briefing-badge-val" style="color: var(--amber);">0</span>
+          </div>
+        </div>
+        <button id="restart-game-btn" class="primary-btn" style="background: linear-gradient(135deg, #ff2a55, #990022); color: white;">
+          REBOOT GRAVITY CORE
+        </button>
+      </div>
+    </div>
+
+    <!-- 9. PAUSE MODAL -->
+    <div id="pause-modal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <h2 class="modal-title">SYSTEM PAUSED</h2>
+        <p style="color: #cad8e6; margin-bottom: 12px;">
+          Gravity fields temporarily frozen in stasis.
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <button id="resume-btn" class="primary-btn">RESUME</button>
+          <button id="pause-back-btn" class="menu-btn">BACK</button>
+          <button id="pause-restart-btn" class="menu-btn">RESTART MISSION</button>
+          <button id="pause-menu-btn" class="secondary-btn">MAIN MENU</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modular Scripts -->
+  <script src="audio.js"></script>
+  <script src="physics.js"></script>
+  <script src="city.js"></script>
+  <script src="emergencies.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
